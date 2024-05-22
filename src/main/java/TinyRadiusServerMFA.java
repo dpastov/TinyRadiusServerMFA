@@ -121,7 +121,7 @@ public class TinyRadiusServerMFA extends RadiusServer {
 	public static void main(String[] args) {
 		TinyRadiusServerMFA server = new TinyRadiusServerMFA();
 		try {
-			server.start(true, true);
+			server.start(true, false);
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
