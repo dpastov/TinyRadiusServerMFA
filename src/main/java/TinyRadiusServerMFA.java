@@ -16,38 +16,46 @@ import com.twilio.rest.api.v2010.account.Message;
 import com.twilio.type.PhoneNumber;
 
 public class TinyRadiusServerMFA extends RadiusServer {
+	private static final String CONFIG_FILE_PATH = "config.properties";
+	
 	private Map<String, String> challenges = new HashMap<>();
 	private HashMap<String, HashMap<String,String>> users = new HashMap<String, HashMap<String, String>>();
 	private String m_secret = "";
+	private String m_twilio_from = "";
 	
 	public TinyRadiusServerMFA() {
 		try {
-			System.out.println("Loading data from config.properties...");
-			Properties properties = new Properties();
-			FileInputStream fis = new FileInputStream("config.properties");
-			properties.load(fis);
-			fis.close();
+	        // Load configuration from file
+	        Properties properties = loadConfiguration(CONFIG_FILE_PATH);
+	        String twilioSid = properties.getProperty("twilio.sid");
+	        String twilioToken = properties.getProperty("twilio.token");
+	        String userName = properties.getProperty("user.name");
+	        String userPhone = properties.getProperty("user.phone");
+	        String userPassword = properties.getProperty("user.password");
 
 			m_secret = properties.getProperty("radius.secret");
-			
-			// Read properties
-			String twilio_sid = properties.getProperty("twilio.sid");
-			String twilio_token = properties.getProperty("twilio.token");
+			m_twilio_from = properties.getProperty("twilio.from");
 
-			String user_name = properties.getProperty("user.name");
-			String user_phone = properties.getProperty("user.phone");
-			String user_password = properties.getProperty("user.password");
+			// user list
 			HashMap<String, String> user = new HashMap<String, String>();
-			user.put("name", user_name);
-			user.put("phone", user_phone);
-			user.put("password", user_password);
-			users.put(user_name, user);
+			user.put("name", userName);
+			user.put("phone", userPhone);
+			user.put("password", userPassword);
+			users.put(userName, user);
 			
 			// Initialize Twilio
-			Twilio.init(twilio_sid, twilio_token);
+			Twilio.init(twilioSid, twilioToken);
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
+	}
+	
+	private Properties loadConfiguration(String filePath) throws IOException {
+	    Properties properties = new Properties();
+	    try (FileInputStream fis = new FileInputStream(filePath)) {
+	        properties.load(fis);
+	    }
+	    return properties;
 	}
 
 	@Override
@@ -56,34 +64,34 @@ public class TinyRadiusServerMFA extends RadiusServer {
 	}
 
 	@Override
-	public String getUserPassword(String username) {
-		if (users.containsKey(username)) {
-			users.get(username).get("password");
+	public String getUserPassword(String userName) {
+		if (users.containsKey(userName)) {
+			return users.get(userName).get("password");
 		}
 		
 		return null;
 	}
 
 	private RadiusPacket accessRequestReceived(AccessRequest request) {
-		String username = request.getUserName();
+		String userName = request.getUserName();
 		String password = request.getUserPassword();
 
-		if (challenges.containsKey(username)) {
-			String expectedCode = challenges.get(username);
+		if (challenges.containsKey(userName)) {
+			String expectedCode = challenges.get(userName);
 			if (password.equals(expectedCode)) {
-				challenges.remove(username);
+				challenges.remove(userName);
 				return new RadiusPacket(RadiusPacket.ACCESS_ACCEPT, request.getPacketIdentifier());
 			} else {
 				return new RadiusPacket(RadiusPacket.ACCESS_REJECT, request.getPacketIdentifier());
 			}
 		}
 
-		if (password.equals(getUserPassword(username))) {
-			String userPhoneNumber = users.get(username).get("password");
-			if (userPhoneNumber != null) {
+		if (password.equals(getUserPassword(userName))) {
+			String userPhone = users.get(userName).get("phone");
+			if (userPhone != null) {
 				String code = generateVerificationCode();
-				challenges.put(username, code);
-				sendSms(userPhoneNumber, code);
+				challenges.put(userName, code);
+				sendSms(userPhone, code);
 				return new RadiusPacket(RadiusPacket.ACCESS_CHALLENGE, request.getPacketIdentifier());
 			}
 		}
@@ -106,8 +114,7 @@ public class TinyRadiusServerMFA extends RadiusServer {
 	}
 
 	private void sendSms(String to, String code) {
-		Message message = Message.creator(new PhoneNumber(to), new PhoneNumber("+12172161812"),
-				"Your verification code is: " + code).create();
+		Message message = Message.creator(new PhoneNumber(to), new PhoneNumber(m_twilio_from), "Your verification code is: " + code).create();
 		System.out.println("Sent message to " + to + ": " + message.getBody());
 	}
 
