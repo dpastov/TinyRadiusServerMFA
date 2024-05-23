@@ -17,24 +17,29 @@ import com.twilio.type.PhoneNumber;
 
 public class TinyRadiusServerMFA extends RadiusServer {
 	private static final String CONFIG_FILE_PATH = "config.properties";
+	private static final String VERSION = "1.0.1";
 	
 	private Map<String, String> challenges = new HashMap<>();
 	private HashMap<String, HashMap<String,String>> users = new HashMap<String, HashMap<String, String>>();
 	private String m_secret = "";
 	private String m_twilio_from = "";
-	
+	private boolean m_debug = false;
+
 	public TinyRadiusServerMFA() {
 		try {
-	        // Load configuration from file
-	        Properties properties = loadConfiguration(CONFIG_FILE_PATH);
-	        String twilioSid = properties.getProperty("twilio.sid");
-	        String twilioToken = properties.getProperty("twilio.token");
-	        String userName = properties.getProperty("user.name");
-	        String userPhone = properties.getProperty("user.phone");
-	        String userPassword = properties.getProperty("user.password");
+			System.out.println(String.format("Server started (v%s)", VERSION));
+
+			// Load configuration from file
+			Properties properties = loadConfiguration(CONFIG_FILE_PATH);
+			String twilioSid = properties.getProperty("twilio.sid");
+			String twilioToken = properties.getProperty("twilio.token");
+			String userName = properties.getProperty("user.name");
+			String userPhone = properties.getProperty("user.phone");
+			String userPassword = properties.getProperty("user.password");
 
 			m_secret = properties.getProperty("radius.secret");
 			m_twilio_from = properties.getProperty("twilio.from");
+			m_debug = properties.getProperty("debug").equals("1");
 
 			// user list
 			HashMap<String, String> user = new HashMap<String, String>();
@@ -42,20 +47,31 @@ public class TinyRadiusServerMFA extends RadiusServer {
 			user.put("phone", userPhone);
 			user.put("password", userPassword);
 			users.put(userName, user);
-			
+
+			debug("users", users);
+
 			// Initialize Twilio
 			Twilio.init(twilioSid, twilioToken);
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
 	}
-	
+
+	private void debug(String prefix, Object o) {
+		if (!m_debug) return;
+		if (o==null) {
+			System.out.println(String.format("[DEBUG] %s: %s", prefix, "null"));
+			return;
+		}
+		System.out.println(String.format("[DEBUG] %s: %s", prefix, o.toString()));
+	}
+
 	private Properties loadConfiguration(String filePath) throws IOException {
-	    Properties properties = new Properties();
-	    try (FileInputStream fis = new FileInputStream(filePath)) {
-	        properties.load(fis);
-	    }
-	    return properties;
+		Properties properties = new Properties();
+		try (FileInputStream fis = new FileInputStream(filePath)) {
+			properties.load(fis);
+		}
+		return properties;
 	}
 
 	@Override
@@ -68,13 +84,19 @@ public class TinyRadiusServerMFA extends RadiusServer {
 		if (users.containsKey(userName)) {
 			return users.get(userName).get("password");
 		}
-		
+
 		return null;
 	}
 
 	private RadiusPacket accessRequestReceived(AccessRequest request) {
 		String userName = request.getUserName();
 		String password = request.getUserPassword();
+
+		debug("userName (client)", userName);
+		debug("password (client)", password);
+		
+		String attributes = request.getAttributes().toString();
+		debug("attributes (client)", attributes);
 
 		if (challenges.containsKey(userName)) {
 			String expectedCode = challenges.get(userName);
@@ -86,7 +108,9 @@ public class TinyRadiusServerMFA extends RadiusServer {
 			}
 		}
 
-		if (password.equals(getUserPassword(userName))) {
+		String userPassword = getUserPassword(userName);
+		debug("password lookup", String.format("Password for %s is %s", userName, userPassword));
+		if (password.equals(userPassword)) {
 			String userPhone = users.get(userName).get("phone");
 			if (userPhone != null) {
 				String code = generateVerificationCode();
