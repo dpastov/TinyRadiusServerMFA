@@ -17,7 +17,7 @@ import com.twilio.type.PhoneNumber;
 
 public class TinyRadiusServerMFA extends RadiusServer {
 	private static final String CONFIG_FILE_PATH = "config.properties";
-	private static final String VERSION = "1.0.2";
+	private static final String VERSION = "1.0.1";
 	
 	private Map<String, String> challenges = new HashMap<>();
 	private HashMap<String, HashMap<String,String>> users = new HashMap<String, HashMap<String, String>>();
