@@ -93,13 +93,12 @@ public class TinyRadiusServerMFA extends RadiusServer {
 		String password = request.getUserPassword();
 		debug("userName (client)", userName);
 		debug("password (client)", password);
+		String attributes = request.getAttributes().toString();
+		debug("attributes (client)", attributes);
+
 		if (password==null) {
 			return new RadiusPacket(RadiusPacket.ACCESS_REJECT, request.getPacketIdentifier());			
 		}
-
-		
-		String attributes = request.getAttributes().toString();
-		debug("attributes (client)", attributes);
 
 		if (challenges.containsKey(userName)) {
 			String expectedCode = challenges.get(userName);
