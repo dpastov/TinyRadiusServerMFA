@@ -13,13 +13,15 @@ The server loads settings from file **config.properties**
 ```
 radius.secret=yourSharedCode
 
+debug=1
+
 user.name=John123
 user.phone=+1555555555
 user.password=youPassword123
 
-twilio.sid = TwilioSID
-twilio.token = TwilioToken
-twilio.from = TwilioFromPhone
+twilio.sid=TwilioSID
+twilio.token=TwilioToken
+twilio.from=TwilioFromPhone
 ```
 
 # Run
