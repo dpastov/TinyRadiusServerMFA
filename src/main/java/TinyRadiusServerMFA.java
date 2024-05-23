@@ -17,7 +17,7 @@ import com.twilio.type.PhoneNumber;
 
 public class TinyRadiusServerMFA extends RadiusServer {
 	private static final String CONFIG_FILE_PATH = "config.properties";
-	private static final String VERSION = "1.0.1";
+	private static final String VERSION = "1.0.2";
 	
 	private Map<String, String> challenges = new HashMap<>();
 	private HashMap<String, HashMap<String,String>> users = new HashMap<String, HashMap<String, String>>();
@@ -91,6 +91,9 @@ public class TinyRadiusServerMFA extends RadiusServer {
 	private RadiusPacket accessRequestReceived(AccessRequest request) {
 		String userName = request.getUserName();
 		String password = request.getUserPassword();
+		if (password==null) {
+			return new RadiusPacket(RadiusPacket.ACCESS_REJECT, request.getPacketIdentifier());			
+		}
 
 		debug("userName (client)", userName);
 		debug("password (client)", password);
@@ -110,6 +113,11 @@ public class TinyRadiusServerMFA extends RadiusServer {
 
 		String userPassword = getUserPassword(userName);
 		debug("password lookup", String.format("Password for %s is %s", userName, userPassword));
+		
+		if (userPassword==null) {
+			return new RadiusPacket(RadiusPacket.ACCESS_REJECT, request.getPacketIdentifier());			
+		}
+		
 		if (password.equals(userPassword)) {
 			String userPhone = users.get(userName).get("phone");
 			if (userPhone != null) {
