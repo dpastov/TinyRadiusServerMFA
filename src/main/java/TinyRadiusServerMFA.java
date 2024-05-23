@@ -91,12 +91,12 @@ public class TinyRadiusServerMFA extends RadiusServer {
 	private RadiusPacket accessRequestReceived(AccessRequest request) {
 		String userName = request.getUserName();
 		String password = request.getUserPassword();
+		debug("userName (client)", userName);
+		debug("password (client)", password);
 		if (password==null) {
 			return new RadiusPacket(RadiusPacket.ACCESS_REJECT, request.getPacketIdentifier());			
 		}
 
-		debug("userName (client)", userName);
-		debug("password (client)", password);
 		
 		String attributes = request.getAttributes().toString();
 		debug("attributes (client)", attributes);
